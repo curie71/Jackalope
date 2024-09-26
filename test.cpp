@@ -29,6 +29,7 @@ limitations under the License.
 #else
 #include <sys/mman.h>
 #endif
+#include <string>
 
 #define MAX_SAMPLE_SIZE 1000000
 #define SHM_SIZE (4 + MAX_SAMPLE_SIZE)
@@ -108,6 +109,19 @@ char *crash = NULL;
 #define FUZZ_TARGET_MODIFIERS __attribute__ ((noinline))
 #endif
 
+
+// parse the quotes
+std::string escapeQuotes(const std::string& input) {
+    std::string output;
+    for (char ch : input) {
+        if (ch == '"') {
+            output += '\\';
+        }
+        output += ch;
+    }
+    return output;
+}
+
 // actual target function
 
 void FUZZ_TARGET_MODIFIERS fuzz(char *name) {
@@ -127,21 +141,66 @@ void FUZZ_TARGET_MODIFIERS fuzz(char *name) {
       printf("Error opening %s\n", name);
       return;
     }
-    fseek(fp, 0, SEEK_END);
-    sample_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    sample_bytes = (char *)malloc(sample_size);
-    fread(sample_bytes, 1, sample_size, fp);
+    //fseek(fp, 0, SEEK_END);
+    //sample_size = ftell(fp);
+    //fseek(fp, 0, SEEK_SET);
+
+    //sample_bytes = (char *)malloc(sample_size);
+    //
+    //fread(sample_bytes, 1, sample_size, fp);
+    //sample_bytes[sample_size] = '\0';
+
+    char line[213];
+    while (fgets(line, sizeof(line), fp)) {
+        // remove \n
+        //line[strcspn(line, "\n")] = '\0';
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+        }
+
+        // parse "
+        std::string escapedLine = escapeQuotes(line);
+        // construct command
+        std::string command = "powershell -Command \"" + escapedLine + "\"";
+        printf("Command: %s\n", command.c_str());
+
+        // execute
+        int status = system(command.c_str());
+
+        // output the result
+        if (status == -1) {
+            printf("Failed to execute command\n");
+        }
+        else {
+            printf("Command executed with exit status: %d\n", status);
+        }
+    }
+
     fclose(fp);
   }
-  
-  if(sample_size >= 4) {
-    // check if the sample spells "test"
-    if(*(uint32_t *)(sample_bytes) == 0x74736574) {
-      // if so, crash
-      crash[0] = 1;
-    }
-  }
+
+  //std::string command = sample_bytes;
+  //command = "powershell -Command \"" + command + "\"";
+  //printf("Command: %s\n", command.c_str());
+  //// execute the command
+  //int status = system(command.c_str());
+
+  //// output
+  //if (status == -1) {
+  //    printf("Failed to execute command\n");
+  //}
+  //else {
+  //    printf("Command executed with exit status: %d\n", status);
+  //}
+
+  //if(sample_size >= 4) {
+  //  // check if the sample spells "test"
+  //  if(*(uint32_t *)(sample_bytes) == 0x74736574) {
+  //    // if so, crash
+  //    crash[0] = 1;
+  //  }
+  //}
   
   if(sample_bytes) free(sample_bytes);
 }
