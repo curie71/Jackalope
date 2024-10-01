@@ -57,7 +57,7 @@ RunResult TinyInstInstrumentation::Run(int argc, char **argv, uint32_t init_time
   } else {
     instrumentation->Kill();
     cur_iteration = 0;
-    status = instrumentation->Run(argc, argv, timeout1);
+    status = instrumentation->Run(argc, argv, timeout1); //TODO attach mode
   }
 
   // if target function is defined,
@@ -68,7 +68,7 @@ RunResult TinyInstInstrumentation::Run(int argc, char **argv, uint32_t init_time
       WARN("Target function not reached, retrying with a clean process\n");
       instrumentation->Kill();
       cur_iteration = 0;
-      status = instrumentation->Run(argc, argv, init_timeout);
+      status = instrumentation->Run(argc, argv, init_timeout); //TODO attach mode
     }
 
     if (status != DEBUGGER_TARGET_START) {
